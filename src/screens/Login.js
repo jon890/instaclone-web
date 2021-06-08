@@ -15,6 +15,8 @@ import SubmitButton from './components/auth/SubmitButton';
 import PageTitle from './components/PageTitle';
 import routes from './routes';
 import { gql, useMutation } from '@apollo/client';
+import { logUserIn } from '../apollo';
+import { useLocation } from 'react-router';
 
 const FacebookLogin = styled.div`
   color: #385285;
@@ -22,6 +24,10 @@ const FacebookLogin = styled.div`
     margin-left: 10px;
     font-weight: 600;
   }
+`;
+
+const Notification = styled.div`
+  color: #2ecc71;
 `;
 
 const LOGIN_MUTATION = gql`
@@ -35,13 +41,40 @@ const LOGIN_MUTATION = gql`
 `;
 
 const Login = () => {
-  const { register, handleSubmit, errors, formState, getValues } = useForm({
+  const location = useLocation();
+  console.log(location);
+
+  const {
+    register,
+    handleSubmit,
+    errors,
+    formState,
+    getValues,
+    setError,
+    clearErrors,
+  } = useForm({
     mode: 'onChange',
     // mode: 'onBlur',
+    defaultValues: {
+      username: location?.state?.username || '',
+      password: location?.state?.password || '',
+    },
   });
 
   const onCompleted = (data) => {
-    console.log(data);
+    const {
+      login: { ok, error, token },
+    } = data;
+
+    if (!ok) {
+      setError('result', {
+        message: error,
+      });
+    }
+
+    if (token) {
+      logUserIn(token);
+    }
   };
 
   const [login, { loading }] = useMutation(LOGIN_MUTATION, {
@@ -59,6 +92,10 @@ const Login = () => {
     });
   };
 
+  const clearLoginError = () => {
+    clearErrors('result');
+  };
+
   return (
     <AuthLayout>
       <PageTitle title="Log in" />
@@ -66,6 +103,7 @@ const Login = () => {
         <div>
           <FontAwesomeIcon icon={faInstagram} size="3x" />
         </div>
+        <Notification>{location?.state?.message}</Notification>
         <form onSubmit={handleSubmit(onSubmitValid)}>
           <Input
             ref={register({
@@ -78,6 +116,7 @@ const Login = () => {
             name="username"
             type="text"
             placeholder="Username"
+            onChange={clearLoginError}
             hasError={Boolean(errors?.username?.message)}
           />
           <FormError message={errors?.username?.message} />
@@ -88,6 +127,7 @@ const Login = () => {
             name="password"
             type="password"
             placeholder="Password"
+            onChange={clearLoginError}
             hasError={Boolean(errors?.password?.message)}
           />
           <FormError message={errors?.password?.message} />
@@ -96,6 +136,7 @@ const Login = () => {
             value={loading ? 'Loading...' : 'Log In'}
             disabled={!formState.isValid || loading}
           />
+          <FormError message={errors?.result?.message} />
         </form>
         <Separator />
         <FacebookLogin>
